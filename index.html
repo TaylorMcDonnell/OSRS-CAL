@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OSRS F2P Calculator</title>
+<title>OSRS F2P Calculator v4</title>
 <style>
   :root {
     --bg: #0f0f0f;
@@ -299,6 +299,56 @@ const PRAYERS = {
   ],
 };
 
+
+// ─── GEAR PRESETS ────────────────────────────────────────────
+const GEAR_PRESETS = {
+  melee: [
+    { name:"Full Bronze",  weapon:1,  helmet:1, body:1, legs:1, shield:1, ammo:0 },
+    { name:"Full Iron",    weapon:7,  helmet:1, body:1, legs:1, shield:1, ammo:0 },
+    { name:"Full Steel",   weapon:8,  helmet:2, body:2, legs:2, shield:2, ammo:0 },
+    { name:"Full Mithril", weapon:9,  helmet:3, body:3, legs:3, shield:3, ammo:0 },
+    { name:"Full Adamant", weapon:10, helmet:4, body:4, legs:4, shield:4, ammo:0 },
+    { name:"Full Rune",    weapon:11, helmet:5, body:5, legs:5, shield:5, ammo:0 },
+  ],
+  ranged: [
+    { name:"Leather + Bronze", weapon:17, helmet:7, body:6, legs:6, shield:0, ammo:1 },
+    { name:"Leather + Iron",   weapon:17, helmet:7, body:6, legs:6, shield:0, ammo:2 },
+    { name:"Leather + Steel",  weapon:18, helmet:7, body:6, legs:6, shield:0, ammo:3 },
+    { name:"Leather + Mithril",weapon:19, helmet:7, body:6, legs:6, shield:0, ammo:4 },
+    { name:"Leather + Adamant",weapon:20, helmet:7, body:6, legs:6, shield:0, ammo:5 },
+    { name:"Leather + Rune",   weapon:21, helmet:7, body:6, legs:6, shield:0, ammo:6 },
+  ],
+  magic: [
+    { name:"Fire staff",  weapon:22, helmet:0, body:0, legs:0, shield:0, ammo:0 },
+    { name:"Air staff",   weapon:23, helmet:0, body:0, legs:0, shield:0, ammo:0 },
+    { name:"Water staff", weapon:24, helmet:0, body:0, legs:0, shield:0, ammo:0 },
+  ],
+};
+
+function applyPreset(presetName) {
+  const skillType = currentSkill === 'ranged' ? 'ranged' : currentSkill === 'magic' ? 'magic' : 'melee';
+  const list = GEAR_PRESETS[skillType] || GEAR_PRESETS.melee;
+  const preset = list.find(p => p.name === presetName);
+  if (!preset) return;
+  selectedGear = { weapon: preset.weapon, helmet: preset.helmet, body: preset.body, legs: preset.legs, shield: preset.shield, ammo: preset.ammo };
+  // Save to localStorage
+  localStorage.setItem('osrs_gear', JSON.stringify(selectedGear));
+  renderGear();
+  renderMethods();
+  calculate();
+}
+
+function saveGear() {
+  localStorage.setItem('osrs_gear', JSON.stringify(selectedGear));
+}
+
+function loadSavedGear() {
+  const saved = localStorage.getItem('osrs_gear');
+  if (saved) {
+    try { selectedGear = JSON.parse(saved); } catch(e) {}
+  }
+}
+
 // ─── METHODS DATABASE ────────────────────────────────────────
 const METHODS = {
   attack:{label:"Attack",methods:[
@@ -444,6 +494,7 @@ let geprices = {};
 
 // ─── INIT ────────────────────────────────────────────────────
 function init() {
+  loadSavedGear();
   // Load saved username
   const saved = localStorage.getItem('osrs_username');
   if (saved) {
@@ -577,10 +628,32 @@ function renderGear() {
   ).join('');
   renderBonusBar();
   renderPrayers();
+  renderPresets();
+}
+
+function renderPresets() {
+  const skillType = currentSkill === 'ranged' ? 'ranged' : currentSkill === 'magic' ? 'magic' : 'melee';
+  const list = GEAR_PRESETS[skillType];
+  if (!list) return;
+  let el = document.getElementById('presetButtons');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'presetButtons';
+    el.style.cssText = 'margin-top:12px;';
+    document.getElementById('gearSection').appendChild(el);
+  }
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Quick loadouts</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${list.map(p => `<button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="applyPreset('${p.name}')">${p.name}</button>`).join('')}
+      <button class="secondary" style="font-size:12px;padding:5px 12px;border-color:var(--accent);color:var(--accent);" onclick="saveGear()">💾 Save current</button>
+    </div>
+  `;
 }
 
 function changeGear(slot, idx) {
   selectedGear[slot]=parseInt(idx);
+  localStorage.setItem('osrs_gear', JSON.stringify(selectedGear));
   renderBonusBar();
   renderMethods();
   calculate();
@@ -767,29 +840,30 @@ function renderDrops(drops) {
 function calculate() {
   const sec = document.getElementById('resultsSection');
   if (!selectedMethod) { sec.style.display='none'; return; }
-  let curLvl = parseInt(document.getElementById('currentLvl').value);
-  let tgtLvl = parseInt(document.getElementById('targetLvl').value);
-  if (isNaN(curLvl) || curLvl < 1) curLvl = 1;
-  if (isNaN(tgtLvl) || tgtLvl < 1) tgtLvl = 99;
-  curLvl = Math.min(Math.max(curLvl, 1), 99);
-  tgtLvl = Math.min(Math.max(tgtLvl, 1), 99);
-  if (tgtLvl <= curLvl) tgtLvl = Math.min(curLvl + 1, 99);
-  const curXP = XP_TABLE[curLvl] || 0;
-  const tgtXP = XP_TABLE[tgtLvl] || 0;
-  const xpNeeded = Math.max(0, tgtXP-curXP);
-  const xphr = estimateXphr(selectedMethod);
-  const hours = xpNeeded/xphr;
-  const actions = Math.ceil(xpNeeded/selectedMethod.xpEach);
-  const gphr = getGphr(selectedMethod, xphr);
-  const progress = Math.min(100,(curXP/XP_TABLE[99])*100);
 
-  sec.style.display='block';
+  const curLvl = Math.min(99, Math.max(1, parseInt(document.getElementById('currentLvl').value) || 1));
+  const tgtLvl = Math.min(99, Math.max(curLvl + 1, parseInt(document.getElementById('targetLvl').value) || 99));
+
+  // XP_TABLE is 0-indexed: index = level number
+  const curXP = XP_TABLE[curLvl];
+  const tgtXP = XP_TABLE[tgtLvl];
+  const xpNeeded = tgtXP - curXP;
+
+  const xphr = Math.max(1, estimateXphr(selectedMethod));
+  const hours = xpNeeded / xphr;
+  const actions = Math.ceil(xpNeeded / selectedMethod.xpEach);
+  const gphr = getGphr(selectedMethod, xphr);
+  const progress = Math.min(100, (curXP / XP_TABLE[99]) * 100);
+
+  sec.style.display = 'block';
+
   let gpCard = '';
   if (gphr != null) {
-    const cls = gphr>=0?'green':'red';
-    const sign = gphr>=0?'+':'';
+    const cls = gphr >= 0 ? 'green' : 'red';
+    const sign = gphr >= 0 ? '+' : '';
     gpCard = `<div class="result-card"><div class="result-label">GP / hr</div><div class="result-val ${cls}">${sign}${fmtNum(gphr)}</div></div>`;
   }
+
   document.getElementById('resultsGrid').innerHTML =
     `<div class="result-card"><div class="result-label">XP needed</div><div class="result-val">${fmtNum(xpNeeded)}</div></div>
      <div class="result-card"><div class="result-label">Time</div><div class="result-val gold">${fmtTime(hours)}</div></div>
@@ -797,11 +871,11 @@ function calculate() {
      ${gpCard}
      <div class="result-card"><div class="result-label">Levels</div><div class="result-val" style="font-size:16px">${curLvl} → ${tgtLvl}</div></div>`;
 
-  document.getElementById('lvlWarn').innerHTML = curLvl<selectedMethod.lvl
+  document.getElementById('lvlWarn').innerHTML = curLvl < selectedMethod.lvl
     ? `<div class="warn">⚠ This method requires level ${selectedMethod.lvl}</div>` : '';
-  document.getElementById('xpBarFill').style.width = progress+'%';
-  document.getElementById('xpBarLeft').textContent = fmtNum(curXP)+' XP';
-  document.getElementById('xpBarRight').textContent = fmtNum(xpNeeded)+' XP to go';
+  document.getElementById('xpBarFill').style.width = progress + '%';
+  document.getElementById('xpBarLeft').textContent = fmtNum(curXP) + ' XP';
+  document.getElementById('xpBarRight').textContent = fmtNum(xpNeeded) + ' XP to go';
 }
 
 // ─── UTILS ───────────────────────────────────────────────────
