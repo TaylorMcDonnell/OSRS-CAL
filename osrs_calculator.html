@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSRS F2P Calculator</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg2: #1a1a1a;
+    --bg3: #242424;
+    --border: #2e2e2e;
+    --border2: #3a3a3a;
+    --text: #e8e8e8;
+    --text2: #999;
+    --text3: #666;
+    --accent: #c89a3c;
+    --accent2: #a07830;
+    --green: #4caf7d;
+    --red: #e05555;
+    --blue: #4a9eff;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+  
+  /* Layout */
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  .sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 20px 16px; display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .main { padding: 24px; overflow-y: auto; }
+
+  /* Sidebar */
+  .logo { font-size: 16px; font-weight: 700; color: var(--accent); padding: 4px 8px 16px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+  .logo span { font-size: 11px; color: var(--text3); font-weight: 400; }
+  .skill-btn { width: 100%; text-align: left; padding: 9px 12px; border-radius: var(--radius-sm); border: none; background: transparent; color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+  .skill-btn:hover { background: var(--bg3); color: var(--text); }
+  .skill-btn.active { background: var(--accent); color: #1a1000; font-weight: 600; }
+  .skill-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  /* Main sections */
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+  
+  /* User row */
+  .user-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .user-row input { flex: 1; }
+  
+  /* Inputs */
+  input[type=text], input[type=number], select {
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    color: var(--text); padding: 8px 12px; font-size: 13px; width: 100%;
+    outline: none; transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--bg3); }
+  
+  button {
+    background: var(--accent); color: #1a1000; border: none; border-radius: var(--radius-sm);
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  button:hover { background: var(--accent2); }
+  button.secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); font-weight: 400; }
+  button.secondary:hover { background: var(--border2); color: var(--text); }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+
+  /* Stat chips */
+  .stat-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .stat-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; color: var(--text2); }
+  .stat-chip strong { color: var(--text); }
+  .stat-chip.highlight { border-color: var(--accent); color: var(--accent); }
+  .stat-chip.highlight strong { color: var(--accent); }
+
+  /* Gear grid */
+  .gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .bonus-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; padding: 10px 14px; background: var(--bg3); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .bonus-item { font-size: 12px; color: var(--text3); }
+  .bonus-item b { color: var(--text); }
+
+  /* Prayer */
+  .prayer-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .prayer-btn { padding: 6px 12px; font-size: 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); cursor: pointer; transition: all 0.15s; font-weight: 400; }
+  .prayer-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg3); }
+  .prayer-btn.active { background: var(--bg3); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  /* Method list */
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-wrap input { padding-left: 34px; }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 15px; }
+  .method-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; padding-right: 2px; }
+  .method-list::-webkit-scrollbar { width: 4px; }
+  .method-list::-webkit-scrollbar-track { background: transparent; }
+  .method-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  .method-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; cursor: pointer; transition: all 0.15s; background: var(--bg3); }
+  .method-card:hover { border-color: var(--border2); }
+  .method-card.selected { border-color: var(--accent); background: #1e1800; }
+  .method-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .method-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .method-badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .badge-xp { background: #1e2e1a; color: var(--green); }
+  .badge-gp { background: #2a2200; color: var(--accent); }
+  .badge-loss { background: #2a1515; color: var(--red); }
+  .method-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* Results */
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .result-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .result-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .result-val { font-size: 22px; font-weight: 700; color: var(--text); }
+  .result-val.green { color: var(--green); }
+  .result-val.red { color: var(--red); }
+  .result-val.gold { color: var(--accent); }
+
+  /* XP bar */
+  .xp-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .xp-bar-track { height: 6px; background: var(--bg3); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+  .xp-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
+
+  /* Drop table */
+  .drops-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .drop-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .drop-chip .drop-name { color: var(--text2); }
+  .drop-chip .drop-qty { color: var(--text3); font-size: 11px; }
+  .drop-chip .drop-price { color: var(--accent); font-size: 11px; font-weight: 600; }
+  .drop-chip.rare { border-color: #5a3a00; }
+  .drop-chip.rare .drop-name { color: #e8a030; }
+
+  /* Status */
+  .status { font-size: 12px; color: var(--text3); margin-top: 6px; min-height: 18px; }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  .status.loading { color: var(--accent); }
+  .warn { font-size: 12px; color: #e8a030; margin-top: 8px; }
+  .empty { color: var(--text3); font-size: 13px; text-align: center; padding: 20px 0; }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">⚔️ OSRS Calc <span>F2P</span></div>
+    <div id="skillNav"></div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Character -->
+    <div class="section">
+      <div class="section-title">Your character</div>
+      <div class="user-row">
+        <input type="text" id="username" placeholder="OSRS username…" />
+        <button onclick="fetchHiscores()">Load stats</button>
+        <button class="secondary" onclick="clearUser()">Clear</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+      <div class="stat-grid" id="statGrid"></div>
+    </div>
+
+    <!-- Skill + target -->
+    <div class="section">
+      <div class="section-title" id="skillSectionTitle">Skill &amp; target</div>
+      <div class="row2" style="margin-bottom:10px">
+        <div><label>Current level</label><input type="number" id="currentLvl" min="1" max="98" value="1" /></div>
+        <div><label>Target level</label><input type="number" id="targetLvl" min="2" max="99" value="99" /></div>
+      </div>
+    </div>
+
+    <!-- Gear (combat only) -->
+    <div class="section" id="gearSection" style="display:none">
+      <div class="section-title">Gear <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(F2P only)</span></div>
+      <div class="gear-grid" id="gearSlots"></div>
+      <div class="bonus-bar" id="bonusBar"></div>
+
+      <hr />
+      <div class="section-title" style="margin-bottom:10px">Prayer bonus</div>
+      <div class="prayer-grid" id="prayerGrid"></div>
+    </div>
+
+    <!-- Methods -->
+    <div class="section">
+      <div class="section-title">Training method</div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="methodSearch" placeholder="Search methods…" />
+      </div>
+      <div class="method-list" id="methodList"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="section" id="resultsSection" style="display:none">
+      <div class="section-title">Results</div>
+      <div class="results-grid" id="resultsGrid"></div>
+      <div class="xp-bar-labels"><span id="xpBarLeft"></span><span id="xpBarRight"></span></div>
+      <div class="xp-bar-track"><div class="xp-bar-fill" id="xpBarFill" style="width:0%"></div></div>
+      <div id="lvlWarn"></div>
+    </div>
+
+    <!-- Drop table -->
+    <div class="section" id="dropsSection" style="display:none">
+      <div class="section-title">Notable drops — <span id="dropsEnemy" style="color:var(--accent);font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+      <div class="status" id="dropsStatus"></div>
+      <div class="drops-grid" id="dropsGrid"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── XP TABLE ───────────────────────────────────────────────
+const XP_TABLE = [0,0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,112006,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,667991,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,13034431];
+const SKILL_IDX = {attack:1,defence:2,strength:3,hitpoints:4,ranged:5,prayer:6,magic:7,cooking:9,woodcutting:10,fishing:12,firemaking:13,crafting:14,smithing:15,mining:16,runecraft:20};
+const SHOW_GEAR = ['attack','strength','defence','ranged','magic'];
+const SKILL_ICONS = {attack:'⚔️',strength:'💪',defence:'🛡️',ranged:'🏹',magic:'🔮',prayer:'✨',woodcutting:'🪓',fishing:'🎣',firemaking:'🔥',mining:'⛏️',smithing:'🔨',cooking:'🍳',crafting:'💎',runecraft:'🌀'};
+
+// ─── GEAR DATABASE ───────────────────────────────────────────
+const GEAR = {
+  weapon:[
+    {name:"Unarmed",atk:0,str:0,range:0,mage:0,speed:4},
+    {name:"Bronze sword",atk:4,str:5,range:0,mage:0,speed:4},
+    {name:"Iron sword",atk:10,str:11,range:0,mage:0,speed:4},
+    {name:"Steel sword",atk:21,str:22,range:0,mage:0,speed:4},
+    {name:"Mithril sword",atk:35,str:36,range:0,mage:0,speed:4},
+    {name:"Adamant sword",atk:52,str:53,range:0,mage:0,speed:4},
+    {name:"Rune sword",atk:71,str:72,range:0,mage:0,speed:4},
+    {name:"Iron scimitar",atk:14,str:14,range:0,mage:0,speed:4},
+    {name:"Steel scimitar",atk:24,str:25,range:0,mage:0,speed:4},
+    {name:"Mithril scimitar",atk:40,str:42,range:0,mage:0,speed:4},
+    {name:"Adamant scimitar",atk:58,str:59,range:0,mage:0,speed:4},
+    {name:"Rune scimitar",atk:45,str:67,range:0,mage:0,speed:4},
+    {name:"Iron 2h sword",atk:15,str:20,range:0,mage:0,speed:7},
+    {name:"Steel 2h sword",atk:26,str:33,range:0,mage:0,speed:7},
+    {name:"Mithril 2h sword",atk:43,str:54,range:0,mage:0,speed:7},
+    {name:"Adamant 2h sword",atk:63,str:78,range:0,mage:0,speed:7},
+    {name:"Rune 2h sword",atk:85,str:103,range:0,mage:0,speed:7},
+    {name:"Oak shortbow",atk:0,str:0,range:14,mage:0,speed:5,isRange:true},
+    {name:"Willow shortbow",atk:0,str:0,range:20,mage:0,speed:5,isRange:true},
+    {name:"Maple shortbow",atk:0,str:0,range:29,mage:0,speed:5,isRange:true},
+    {name:"Yew shortbow",atk:0,str:0,range:47,mage:0,speed:5,isRange:true},
+    {name:"Magic shortbow",atk:0,str:0,range:55,mage:0,speed:5,isRange:true},
+    {name:"Staff of fire",atk:10,str:0,range:0,mage:12,speed:5,isMage:true},
+    {name:"Air staff",atk:10,str:0,range:0,mage:10,speed:5,isMage:true},
+    {name:"Staff of water",atk:10,str:0,range:0,mage:10,speed:5,isMage:true},
+  ],
+  helmet:[
+    {name:"None",def:0},{name:"Iron full helm",def:5},{name:"Steel full helm",def:12},
+    {name:"Mithril full helm",def:19},{name:"Adamant full helm",def:28},{name:"Rune full helm",def:35},
+    {name:"Coif",def:3},{name:"Leather cowl",def:2},
+  ],
+  body:[
+    {name:"None",def:0},{name:"Iron platebody",def:15},{name:"Steel platebody",def:28},
+    {name:"Mithril platebody",def:43},{name:"Adamant platebody",def:63},{name:"Rune platebody",def:80},
+    {name:"Leather body",def:4},{name:"Hardleather body",def:8},
+  ],
+  legs:[
+    {name:"None",def:0},{name:"Iron platelegs",def:9},{name:"Steel platelegs",def:18},
+    {name:"Mithril platelegs",def:28},{name:"Adamant platelegs",def:40},{name:"Rune platelegs",def:51},
+    {name:"Leather chaps",def:3},
+  ],
+  shield:[
+    {name:"None",def:0},{name:"Iron kiteshield",def:10},{name:"Steel kiteshield",def:19},
+    {name:"Mithril kiteshield",def:30},{name:"Adamant kiteshield",def:43},{name:"Rune kiteshield",def:54},
+  ],
+  ammo:[
+    {name:"None",range:0},{name:"Bronze arrows",range:7},{name:"Iron arrows",range:10},
+    {name:"Steel arrows",range:16},{name:"Mithril arrows",range:22},
+    {name:"Adamant arrows",range:31},{name:"Rune arrows",range:49},
+  ],
+};
+
+// ─── PRAYER BONUSES ──────────────────────────────────────────
+const PRAYERS = {
+  melee:[
+    {name:"None",mult:1},{name:"Burst of Strength",mult:1.05},{name:"Superhuman Strength",mult:1.1},
+    {name:"Ultimate Strength",mult:1.15},{name:"Clarity of Thought",atkMult:1.05,mult:1},
+    {name:"Improved Reflexes",atkMult:1.1,mult:1},{name:"Incredible Reflexes",atkMult:1.15,mult:1},
+    {name:"Chivalry",mult:1.18,atkMult:1.15},{name:"Piety",mult:1.23,atkMult:1.2},
+  ],
+  ranged:[
+    {name:"None",mult:1},{name:"Sharp Eye",mult:1.05},{name:"Hawk Eye",mult:1.1},
+    {name:"Eagle Eye",mult:1.15},{name:"Rigour",mult:1.23},
+  ],
+  magic:[
+    {name:"None",mult:1},{name:"Mystic Will",mult:1.05},{name:"Mystic Lore",mult:1.1},
+    {name:"Mystic Might",mult:1.15},{name:"Augury",mult:1.25},
+  ],
+};
+
+// ─── METHODS DATABASE ────────────────────────────────────────
+const METHODS = {
+  attack:{label:"Attack",methods:[
+    {name:"Chickens",base:10000,xpEach:25,unit:"chickens",lvl:1,note:"Lumbridge",combat:true,eDef:0,eHp:3,drops:"chicken"},
+    {name:"Cows",base:18000,xpEach:52,unit:"cows",lvl:1,note:"Lumbridge",combat:true,eDef:10,eHp:8,drops:"cow"},
+    {name:"Goblins",base:14000,xpEach:40,unit:"goblins",lvl:1,note:"Goblin Village",combat:true,eDef:0,eHp:5,drops:"goblin"},
+    {name:"Al-Kharid Warriors",base:30000,xpEach:61,unit:"warriors",lvl:20,note:"Al Kharid Palace",combat:true,eDef:26,eHp:20,drops:"al-kharid_warrior"},
+    {name:"Hill Giants",base:40000,xpEach:120,unit:"giants",lvl:30,note:"Edgeville Dungeon",combat:true,eDef:15,eHp:35,drops:"hill_giant"},
+    {name:"Moss Giants",base:50000,xpEach:155,unit:"giants",lvl:50,note:"Varrock Sewers",combat:true,eDef:20,eHp:60,drops:"moss_giant"},
+    {name:"Lesser Demons",base:55000,xpEach:285,unit:"demons",lvl:60,note:"Karamja Volcano",combat:true,eDef:60,eHp:79,drops:"lesser_demon"},
+    {name:"Greater Demons",base:65000,xpEach:350,unit:"demons",lvl:70,note:"Wilderness",combat:true,eDef:65,eHp:100,drops:"greater_demon"},
+  ]},
+  strength:{label:"Strength",methods:[
+    {name:"Chickens",base:10000,xpEach:25,unit:"chickens",lvl:1,note:"Lumbridge",combat:true,eDef:0,eHp:3,drops:"chicken"},
+    {name:"Cows",base:18000,xpEach:52,unit:"cows",lvl:1,note:"Lumbridge",combat:true,eDef:10,eHp:8,drops:"cow"},
+    {name:"Goblins",base:14000,xpEach:40,unit:"goblins",lvl:1,note:"Goblin Village",combat:true,eDef:0,eHp:5,drops:"goblin"},
+    {name:"Al-Kharid Warriors",base:30000,xpEach:61,unit:"warriors",lvl:20,note:"Al Kharid Palace",combat:true,eDef:26,eHp:20,drops:"al-kharid_warrior"},
+    {name:"Hill Giants",base:40000,xpEach:120,unit:"giants",lvl:30,note:"Edgeville Dungeon",combat:true,eDef:15,eHp:35,drops:"hill_giant"},
+    {name:"Moss Giants",base:50000,xpEach:155,unit:"giants",lvl:50,note:"Varrock Sewers",combat:true,eDef:20,eHp:60,drops:"moss_giant"},
+    {name:"Lesser Demons",base:55000,xpEach:285,unit:"demons",lvl:60,note:"Karamja Volcano",combat:true,eDef:60,eHp:79,drops:"lesser_demon"},
+    {name:"Greater Demons",base:65000,xpEach:350,unit:"demons",lvl:70,note:"Wilderness",combat:true,eDef:65,eHp:100,drops:"greater_demon"},
+  ]},
+  defence:{label:"Defence",methods:[
+    {name:"Chickens",base:10000,xpEach:25,unit:"chickens",lvl:1,note:"Lumbridge",combat:true,eDef:0,eHp:3,drops:"chicken"},
+    {name:"Cows",base:18000,xpEach:52,unit:"cows",lvl:1,note:"Lumbridge",combat:true,eDef:10,eHp:8,drops:"cow"},
+    {name:"Al-Kharid Warriors",base:30000,xpEach:61,unit:"warriors",lvl:20,note:"Al Kharid",combat:true,eDef:26,eHp:20,drops:"al-kharid_warrior"},
+    {name:"Hill Giants",base:40000,xpEach:120,unit:"giants",lvl:30,note:"Edgeville Dungeon",combat:true,eDef:15,eHp:35,drops:"hill_giant"},
+    {name:"Moss Giants",base:50000,xpEach:155,unit:"giants",lvl:50,note:"Varrock Sewers",combat:true,eDef:20,eHp:60,drops:"moss_giant"},
+    {name:"Lesser Demons",base:55000,xpEach:285,unit:"demons",lvl:60,note:"Karamja Volcano",combat:true,eDef:60,eHp:79,drops:"lesser_demon"},
+  ]},
+  ranged:{label:"Ranged",methods:[
+    {name:"Chickens",base:12000,xpEach:25,unit:"chickens",lvl:1,note:"Lumbridge",combat:true,eDef:0,eHp:3,drops:"chicken"},
+    {name:"Cows",base:18000,xpEach:52,unit:"cows",lvl:1,note:"Lumbridge",combat:true,eDef:10,eHp:8,drops:"cow"},
+    {name:"Goblins",base:15000,xpEach:40,unit:"goblins",lvl:1,note:"Goblin Village",combat:true,eDef:0,eHp:5,drops:"goblin"},
+    {name:"Al-Kharid Warriors",base:28000,xpEach:61,unit:"warriors",lvl:20,note:"Al Kharid",combat:true,eDef:26,eHp:20,drops:"al-kharid_warrior"},
+    {name:"Hill Giants",base:38000,xpEach:120,unit:"giants",lvl:30,note:"Edgeville Dungeon",combat:true,eDef:15,eHp:35,drops:"hill_giant"},
+    {name:"Moss Giants",base:48000,xpEach:155,unit:"giants",lvl:50,note:"Varrock Sewers",combat:true,eDef:20,eHp:60,drops:"moss_giant"},
+    {name:"Lesser Demons",base:52000,xpEach:285,unit:"demons",lvl:60,note:"Karamja Volcano",combat:true,eDef:60,eHp:79,drops:"lesser_demon"},
+  ]},
+  magic:{label:"Magic",methods:[
+    {name:"Wind Strike (chickens)",base:15000,xpEach:11,unit:"casts",lvl:1,note:"Lumbridge",combat:true,drops:"chicken"},
+    {name:"Fire Strike (cows)",base:20000,xpEach:14,unit:"casts",lvl:13,note:"Lumbridge",combat:true,drops:"cow"},
+    {name:"Fire Bolt (hill giants)",base:35000,xpEach:22,unit:"casts",lvl:35,note:"Edgeville Dungeon",combat:true,drops:"hill_giant"},
+    {name:"Fire Blast (moss giants)",base:45000,xpEach:35,unit:"casts",lvl:59,note:"Varrock Sewers",combat:true,drops:"moss_giant"},
+    {name:"High Alchemy",base:78000,xpEach:65,unit:"casts",lvl:55,note:"Anywhere"},
+    {name:"Superheat Item",base:60000,xpEach:53,unit:"casts",lvl:43,note:"Anywhere"},
+    {name:"Splashing",base:55000,xpEach:14,unit:"casts",lvl:1,note:"AFK method"},
+  ]},
+  prayer:{label:"Prayer",methods:[
+    {name:"Bury Bones",base:55000,xpEach:4.5,unit:"bones",lvl:1,note:"Buy from GE",gpPerAction:-5},
+    {name:"Bury Big Bones",base:55000,xpEach:15,unit:"bones",lvl:1,note:"Hill Giants drop",gpPerAction:-120},
+    {name:"Bury Zogre Bones",base:55000,xpEach:22.5,unit:"bones",lvl:1,note:"Zogre cave",gpPerAction:-250},
+    {name:"Bury Dragon Bones (Wildy)",base:55000,xpEach:72,unit:"bones",lvl:1,note:"Wilderness",gpPerAction:-2500},
+  ]},
+  woodcutting:{label:"Woodcutting",methods:[
+    {name:"Regular Trees",base:7000,xpEach:25,unit:"trees",lvl:1,note:"Lumbridge / Varrock",gpPerAction:20},
+    {name:"Oak Trees",base:17000,xpEach:37.5,unit:"trees",lvl:15,note:"Draynor / Varrock",gpPerAction:40},
+    {name:"Willow Trees",base:35000,xpEach:67.5,unit:"trees",lvl:30,note:"Draynor Village",gpPerAction:12},
+    {name:"Yew Trees",base:20000,xpEach:175,unit:"trees",lvl:60,note:"Varrock Palace",gpPerAction:450},
+    {name:"Magic Trees",base:12000,xpEach:250,unit:"trees",lvl:75,note:"Sorcerers Tower",gpPerAction:1000},
+  ]},
+  fishing:{label:"Fishing",methods:[
+    {name:"Shrimps / Anchovies",base:10000,xpEach:10,unit:"catches",lvl:1,note:"Draynor Village",gpPerAction:5},
+    {name:"Sardine / Herring",base:15000,xpEach:20,unit:"fish",lvl:5,note:"Draynor Village",gpPerAction:10},
+    {name:"Trout (fly fishing)",base:25000,xpEach:50,unit:"fish",lvl:20,note:"Barbarian Village",gpPerAction:40},
+    {name:"Salmon",base:30000,xpEach:70,unit:"fish",lvl:30,note:"Barbarian Village",gpPerAction:60},
+    {name:"Tuna",base:20000,xpEach:80,unit:"fish",lvl:35,note:"Musa Point",gpPerAction:90},
+    {name:"Lobsters",base:22000,xpEach:90,unit:"lobsters",lvl:40,note:"Musa Point",gpPerAction:180},
+    {name:"Swordfish",base:25000,xpEach:100,unit:"fish",lvl:50,note:"Musa Point",gpPerAction:420},
+  ]},
+  firemaking:{label:"Firemaking",methods:[
+    {name:"Regular Logs",base:150000,xpEach:40,unit:"logs",lvl:1,gpPerAction:-20},
+    {name:"Oak Logs",base:200000,xpEach:60,unit:"logs",lvl:15,gpPerAction:-40},
+    {name:"Willow Logs",base:250000,xpEach:90,unit:"logs",lvl:30,gpPerAction:-12},
+    {name:"Yew Logs",base:290000,xpEach:202.5,unit:"logs",lvl:60,gpPerAction:-450},
+    {name:"Magic Logs",base:310000,xpEach:303.8,unit:"logs",lvl:75,gpPerAction:-1000},
+  ]},
+  mining:{label:"Mining",methods:[
+    {name:"Copper / Tin Ore",base:15000,xpEach:17.5,unit:"ores",lvl:1,note:"Varrock",gpPerAction:30},
+    {name:"Iron Ore",base:40000,xpEach:35,unit:"ores",lvl:15,note:"Varrock",gpPerAction:100},
+    {name:"Coal",base:25000,xpEach:50,unit:"ores",lvl:30,note:"Dwarven Mine",gpPerAction:180},
+    {name:"Gold Ore",base:35000,xpEach:65,unit:"ores",lvl:40,note:"Crafting Guild",gpPerAction:350},
+    {name:"Mithril Ore",base:20000,xpEach:80,unit:"ores",lvl:55,note:"Dwarven Mine",gpPerAction:350},
+    {name:"Adamantite Ore",base:18000,xpEach:95,unit:"ores",lvl:70,note:"Wilderness",gpPerAction:1200},
+    {name:"Runite Ore",base:10000,xpEach:125,unit:"ores",lvl:85,note:"Wilderness",gpPerAction:11000},
+  ]},
+  smithing:{label:"Smithing",methods:[
+    {name:"Bronze Bar",base:100000,xpEach:6.2,unit:"bars",lvl:1,note:"Al Kharid furnace",gpPerAction:-60},
+    {name:"Iron Bar",base:110000,xpEach:12.5,unit:"bars",lvl:15,note:"Al Kharid furnace",gpPerAction:30},
+    {name:"Steel Bar",base:100000,xpEach:17.5,unit:"bars",lvl:30,note:"Al Kharid furnace",gpPerAction:200},
+    {name:"Gold Bar",base:350000,xpEach:22.5,unit:"bars",lvl:40,note:"Al Kharid furnace",gpPerAction:100},
+    {name:"Mithril Bar",base:90000,xpEach:30,unit:"bars",lvl:50,note:"Al Kharid furnace",gpPerAction:300},
+    {name:"Iron Platebody",base:220000,xpEach:75,unit:"platebodies",lvl:33,note:"Varrock Anvil",gpPerAction:-500},
+    {name:"Steel Platebody",base:200000,xpEach:187.5,unit:"platebodies",lvl:48,note:"Varrock Anvil",gpPerAction:1000},
+    {name:"Mithril Platebody",base:170000,xpEach:300,unit:"platebodies",lvl:68,note:"Varrock Anvil",gpPerAction:2000},
+  ]},
+  cooking:{label:"Cooking",methods:[
+    {name:"Shrimps",base:170000,xpEach:30,unit:"shrimps",lvl:1,gpPerAction:5},
+    {name:"Sardine",base:200000,xpEach:40,unit:"fish",lvl:1,gpPerAction:8},
+    {name:"Trout",base:250000,xpEach:70,unit:"fish",lvl:15,gpPerAction:35},
+    {name:"Salmon",base:270000,xpEach:90,unit:"fish",lvl:25,gpPerAction:55},
+    {name:"Tuna",base:280000,xpEach:100,unit:"fish",lvl:30,gpPerAction:80},
+    {name:"Lobster",base:290000,xpEach:120,unit:"lobsters",lvl:40,gpPerAction:160},
+    {name:"Swordfish",base:250000,xpEach:140,unit:"fish",lvl:45,gpPerAction:400},
+  ]},
+  crafting:{label:"Crafting",methods:[
+    {name:"Leather Gloves",base:100000,xpEach:13.8,unit:"pairs",lvl:1,gpPerAction:-50},
+    {name:"Leather Body",base:120000,xpEach:25,unit:"bodies",lvl:14,gpPerAction:-80},
+    {name:"Cutting Sapphires",base:160000,xpEach:50,unit:"gems",lvl:20,gpPerAction:100},
+    {name:"Cutting Emeralds",base:180000,xpEach:67.5,unit:"gems",lvl:27,gpPerAction:200},
+    {name:"Cutting Rubies",base:200000,xpEach:85,unit:"gems",lvl:34,gpPerAction:400},
+    {name:"Cutting Diamonds",base:220000,xpEach:107.5,unit:"gems",lvl:43,gpPerAction:800},
+  ]},
+  runecraft:{label:"Runecraft",methods:[
+    {name:"Air Runes",base:12000,xpEach:350,unit:"trips",lvl:1,note:"Air Altar",gpPerAction:800},
+    {name:"Mind Runes",base:10000,xpEach:275,unit:"trips",lvl:1,note:"Mind Altar",gpPerAction:600},
+    {name:"Water Runes",base:9000,xpEach:380,unit:"trips",lvl:5,note:"Lumbridge",gpPerAction:700},
+    {name:"Earth Runes",base:8500,xpEach:420,unit:"trips",lvl:9,note:"Varrock",gpPerAction:900},
+    {name:"Fire Runes",base:9000,xpEach:500,unit:"trips",lvl:14,note:"Al Kharid",gpPerAction:1000},
+    {name:"Nature Runes",base:6000,xpEach:900,unit:"trips",lvl:44,note:"Karamja",gpPerAction:3000},
+  ]},
+};
+
+// ─── KNOWN F2P DROPS (static, used if API fails) ─────────────
+const STATIC_DROPS = {
+  chicken:     [{name:"Raw chicken",qty:"1",rare:false},{name:"Feathers",qty:"5-15",rare:false},{name:"Bones",qty:"1",rare:false}],
+  cow:         [{name:"Raw beef",qty:"1",rare:false},{name:"Cowhide",qty:"1",rare:false},{name:"Bones",qty:"1",rare:false}],
+  goblin:      [{name:"Bones",qty:"1",rare:false},{name:"Bronze arrows",qty:"1-4",rare:false},{name:"Goblin mail",qty:"1",rare:true}],
+  hill_giant:  [{name:"Big bones",qty:"1",rare:false},{name:"Limpwurt root",qty:"1",rare:false},{name:"Giant key",qty:"1",rare:true},{name:"Rune med helm",qty:"1",rare:true}],
+  moss_giant:  [{name:"Big bones",qty:"1",rare:false},{name:"Limpwurt root",qty:"1",rare:false},{name:"Mithril sq shield",qty:"1",rare:true},{name:"Rune med helm",qty:"1",rare:true}],
+  lesser_demon:[{name:"Bones",qty:"1",rare:false},{name:"Rune med helm",qty:"1",rare:true},{name:"Rune full helm",qty:"1",rare:true},{name:"Chaos rune",qty:"3-10",rare:false}],
+  greater_demon:[{name:"Bones",qty:"1",rare:false},{name:"Rune full helm",qty:"1",rare:true},{name:"Rune 2h sword",qty:"1",rare:true},{name:"Rune sword",qty:"1",rare:true},{name:"Fire rune",qty:"15-75",rare:false}],
+  'al-kharid_warrior':[{name:"Bones",qty:"1",rare:false},{name:"Coins",qty:"1-8",rare:false},{name:"Iron med helm",qty:"1",rare:false}],
+};
+
+// ─── STATE ───────────────────────────────────────────────────
+let currentSkill = 'attack';
+let selectedMethod = null;
+let playerStats = {};
+let selectedGear = {weapon:0,helmet:0,body:0,legs:0,shield:0,ammo:0};
+let selectedPrayer = 0;
+let geprices = {};
+
+// ─── INIT ────────────────────────────────────────────────────
+function init() {
+  // Load saved username
+  const saved = localStorage.getItem('osrs_username');
+  if (saved) {
+    document.getElementById('username').value = saved;
+    fetchHiscores(true);
+  }
+  renderNav();
+  renderGear();
+  renderMethods();
+  fetchGEPrices();
+}
+
+// ─── GE PRICES ───────────────────────────────────────────────
+async function fetchGEPrices() {
+  try {
+    const r = await fetch('https://prices.runescape.wiki/api/v1/osrs/latest', {headers:{'User-Agent':'OSRS-F2P-Calc'}});
+    const d = await r.json();
+    geprices = d.data || {};
+  } catch(e) { /* silent fail, use static gp */ }
+}
+
+// ─── HISCORES ────────────────────────────────────────────────
+async function fetchHiscores(silent=false) {
+  const username = document.getElementById('username').value.trim();
+  if (!username) return;
+  const msg = document.getElementById('statusMsg');
+  if (!silent) msg.className='status loading', msg.textContent='Fetching stats…';
+  try {
+    const url = 'https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player='+encodeURIComponent(username);
+    const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+    if (!r.ok) throw new Error();
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    playerStats = {};
+    for (const [skill, idx] of Object.entries(SKILL_IDX)) {
+      const parts = lines[idx]?.split(',');
+      if (parts) playerStats[skill] = {level:parseInt(parts[1]),xp:parseInt(parts[2])};
+    }
+    localStorage.setItem('osrs_username', username);
+    msg.className='status ok';
+    msg.textContent='✓ Loaded stats for '+username;
+    renderStatGrid();
+    autoFillLevel();
+  } catch(e) {
+    msg.className='status err';
+    msg.textContent='✗ Could not load — check username and try again';
+    document.getElementById('statGrid').innerHTML='';
+  }
+}
+
+function clearUser() {
+  localStorage.removeItem('osrs_username');
+  document.getElementById('username').value='';
+  document.getElementById('statusMsg').textContent='';
+  document.getElementById('statGrid').innerHTML='';
+  playerStats={};
+}
+
+function renderStatGrid() {
+  const order=['attack','strength','defence','ranged','magic','prayer','hitpoints','woodcutting','fishing','firemaking','mining','smithing','cooking','crafting','runecraft'];
+  document.getElementById('statGrid').innerHTML = order.map(s => {
+    const d = playerStats[s];
+    if (!d) return '';
+    const hl = s===currentSkill ? ' highlight':'';
+    return `<div class="stat-chip${hl}">${SKILL_ICONS[s]||''} ${s.charAt(0).toUpperCase()+s.slice(1,3)} <strong>${d.level}</strong></div>`;
+  }).join('');
+}
+
+function autoFillLevel() {
+  const d = playerStats[currentSkill];
+  if (d) document.getElementById('currentLvl').value = d.level;
+  calculate();
+}
+
+// ─── NAV ─────────────────────────────────────────────────────
+function renderNav() {
+  document.getElementById('skillNav').innerHTML = Object.keys(METHODS).map(s =>
+    `<button class="skill-btn${s===currentSkill?' active':''}" onclick="switchSkill('${s}')">
+      <span class="skill-icon">${SKILL_ICONS[s]||'•'}</span>${METHODS[s].label}
+    </button>`
+  ).join('');
+}
+
+function switchSkill(skill) {
+  currentSkill = skill;
+  selectedMethod = null;
+  selectedPrayer = 0;
+  renderNav();
+  renderStatGrid();
+  autoFillLevel();
+  renderGear();
+  renderMethods();
+  document.getElementById('resultsSection').style.display='none';
+  document.getElementById('dropsSection').style.display='none';
+  document.getElementById('skillSectionTitle').textContent = METHODS[skill].label+' — skill & target';
+}
+
+// ─── GEAR ────────────────────────────────────────────────────
+function renderGear() {
+  const sec = document.getElementById('gearSection');
+  if (!SHOW_GEAR.includes(currentSkill)) { sec.style.display='none'; return; }
+  sec.style.display='block';
+  const slots = ['weapon','helmet','body','legs','shield','ammo'];
+  document.getElementById('gearSlots').innerHTML = slots.map(slot =>
+    `<div><label>${slot.charAt(0).toUpperCase()+slot.slice(1)}</label>
+    <select onchange="changeGear('${slot}',this.value)">
+      ${GEAR[slot].map((g,i)=>`<option value="${i}"${selectedGear[slot]===i?' selected':''}>${g.name}</option>`).join('')}
+    </select></div>`
+  ).join('');
+  renderBonusBar();
+  renderPrayers();
+}
+
+function changeGear(slot, idx) {
+  selectedGear[slot]=parseInt(idx);
+  renderBonusBar();
+  renderMethods();
+  calculate();
+}
+
+function renderBonusBar() {
+  const w = GEAR.weapon[selectedGear.weapon];
+  const ammo = GEAR.ammo[selectedGear.ammo];
+  const totalRange = (w.range||0)+(ammo?.range||0);
+  document.getElementById('bonusBar').innerHTML =
+    `<div class="bonus-item">Atk <b>+${w.atk}</b></div>
+     <div class="bonus-item">Str <b>+${w.str}</b></div>
+     <div class="bonus-item">Range <b>+${totalRange}</b></div>
+     <div class="bonus-item">Mage <b>+${w.mage||0}</b></div>
+     <div class="bonus-item">Speed <b>${w.speed} ticks</b></div>`;
+}
+
+function renderPrayers() {
+  const skill = currentSkill;
+  let list = skill==='ranged' ? PRAYERS.ranged : skill==='magic' ? PRAYERS.magic : PRAYERS.melee;
+  document.getElementById('prayerGrid').innerHTML = list.map((p,i) =>
+    `<button class="prayer-btn${selectedPrayer===i?' active':''}" onclick="setPrayer(${i})">${p.name}</button>`
+  ).join('');
+}
+
+function setPrayer(idx) {
+  selectedPrayer=idx;
+  renderPrayers();
+  renderMethods();
+  calculate();
+}
+
+// ─── COMBAT XP/HR ESTIMATOR ──────────────────────────────────
+function getPrayerMult() {
+  const skill = currentSkill;
+  let list = skill==='ranged'?PRAYERS.ranged:skill==='magic'?PRAYERS.magic:PRAYERS.melee;
+  const p = list[selectedPrayer]||list[0];
+  return p.mult||1;
+}
+
+function estimateXphr(m) {
+  if (!m.combat) return m.base;
+  const w = GEAR.weapon[selectedGear.weapon];
+  const ammo = GEAR.ammo[selectedGear.ammo];
+  const pMult = getPrayerMult();
+  const atkLvl = parseInt(document.getElementById('currentLvl').value)||1;
+
+  if (currentSkill==='magic') return m.base;
+
+  if (currentSkill==='ranged' || w.isRange) {
+    const rangeLvl = playerStats.ranged?.level || atkLvl;
+    const rangeBonus = (w.range||0)+(ammo?.range||0);
+    const effLvl = Math.floor(rangeLvl * pMult);
+    const maxHit = Math.floor(0.5 + effLvl*(rangeBonus+64)/640);
+    const acc = Math.min(0.97, (effLvl*2+rangeBonus)/((m.eDef||0)*2+100));
+    const avgHit = maxHit*acc*0.5;
+    const ticksPerKill = ((m.eHp||20)/Math.max(avgHit,0.3))*(w.speed||5);
+    const kph = Math.floor(3600/(ticksPerKill*0.6));
+    return Math.max(m.base*0.4, Math.min(m.base*2.8, kph*m.xpEach));
+  }
+
+  // melee
+  const strLvl = playerStats.strength?.level || atkLvl;
+  const effStr = Math.floor(strLvl * pMult);
+  const effAtk = Math.floor(atkLvl * (getPrayerMult()));
+  const maxHit = Math.floor(0.5 + effStr*(w.str+64)/640);
+  const acc = Math.min(0.97, (effAtk*2+w.atk)/((m.eDef||0)*2+100));
+  const avgHit = maxHit*acc*0.5;
+  const ticksPerKill = ((m.eHp||20)/Math.max(avgHit,0.3))*(w.speed||4);
+  const kph = Math.floor(3600/(ticksPerKill*0.6));
+  return Math.max(m.base*0.4, Math.min(m.base*2.8, kph*m.xpEach));
+}
+
+// ─── GP/HR ───────────────────────────────────────────────────
+function getGphr(m, xphr) {
+  if (m.gpPerAction != null) {
+    const actionsPerHr = xphr / m.xpEach;
+    return Math.round(actionsPerHr * m.gpPerAction);
+  }
+  return null;
+}
+
+// ─── METHODS ─────────────────────────────────────────────────
+function renderMethods(filter='') {
+  const methods = METHODS[currentSkill].methods.filter(m =>
+    m.name.toLowerCase().includes(filter.toLowerCase())
+  );
+  const el = document.getElementById('methodList');
+  if (!methods.length) { el.innerHTML='<div class="empty">No methods found</div>'; return; }
+  el.innerHTML = methods.map(m => {
+    const xphr = estimateXphr(m);
+    const gphr = getGphr(m, xphr);
+    let gpBadge = '';
+    if (gphr != null) {
+      const cls = gphr >= 0 ? 'badge-gp' : 'badge-loss';
+      const sign = gphr >= 0 ? '+' : '';
+      gpBadge = `<span class="badge ${cls}">${sign}${fmtNum(gphr)} gp/hr</span>`;
+    }
+    return `<div class="method-card${selectedMethod&&selectedMethod.name===m.name?' selected':''}"
+      onclick="selectMethod('${m.name.replace(/'/g,"\\'")}')">
+      <div class="method-top">
+        <span class="method-name">${m.name}</span>
+        <span class="method-badges">
+          <span class="badge badge-xp">${fmtNum(xphr)} xp/hr</span>
+          ${gpBadge}
+        </span>
+      </div>
+      <div class="method-sub">${fmtNum(m.xpEach)} xp each · Req lv ${m.lvl}${m.note?' · '+m.note:''}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectMethod(name) {
+  selectedMethod = METHODS[currentSkill].methods.find(m=>m.name===name);
+  renderMethods(document.getElementById('methodSearch').value);
+  calculate();
+  if (selectedMethod?.drops) loadDrops(selectedMethod.drops, selectedMethod.name);
+  else document.getElementById('dropsSection').style.display='none';
+}
+
+// ─── DROPS ───────────────────────────────────────────────────
+async function loadDrops(key, label) {
+  const sec = document.getElementById('dropsSection');
+  const grid = document.getElementById('dropsGrid');
+  const status = document.getElementById('dropsStatus');
+  document.getElementById('dropsEnemy').textContent = label;
+  sec.style.display='block';
+  grid.innerHTML='';
+  status.textContent='Loading drop table…';
+  status.className='status loading';
+
+  // Try OSRS Wiki API
+  try {
+    const wikiName = key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://oldschool.runescape.wiki/api.php?action=parse&page='+encodeURIComponent(wikiName)+'&prop=wikitext&format=json')}`);
+    const d = await r.json();
+    if (d?.parse?.wikitext?.['*']) {
+      const drops = parseWikiDrops(d.parse.wikitext['*']);
+      if (drops.length > 0) {
+        status.textContent='';
+        renderDrops(drops);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Fallback to static
+  const staticDrops = STATIC_DROPS[key];
+  if (staticDrops) {
+    status.textContent='';
+    renderDrops(staticDrops);
+  } else {
+    status.className='status';
+    status.textContent='Drop data unavailable for this enemy.';
+  }
+}
+
+function parseWikiDrops(wikitext) {
+  const drops = [];
+  const regex = /\|\s*([^\|]+?)\s*\|\|\s*([\d,\-]+(?:\s*[\-–]\s*[\d,]+)?)\s*\|\|\s*([\d.,]+)/g;
+  let m;
+  const seen = new Set();
+  while ((m=regex.exec(wikitext))!==null && drops.length<12) {
+    const name = m[1].replace(/\[\[|\]\]/g,'').split('|')[0].trim();
+    const qty = m[2].trim();
+    if (name && !seen.has(name) && name.length>1 && name.length<40) {
+      seen.add(name);
+      drops.push({name, qty, rare: parseFloat(m[3])<1});
+    }
+  }
+  return drops;
+}
+
+function renderDrops(drops) {
+  document.getElementById('dropsGrid').innerHTML = drops.map(d =>
+    `<div class="drop-chip${d.rare?' rare':''}">
+      <span class="drop-name">${d.name}</span>
+      <span class="drop-qty">×${d.qty}</span>
+    </div>`
+  ).join('');
+}
+
+// ─── CALCULATE ───────────────────────────────────────────────
+function calculate() {
+  const sec = document.getElementById('resultsSection');
+  if (!selectedMethod) { sec.style.display='none'; return; }
+  const curLvl = parseInt(document.getElementById('currentLvl').value)||1;
+  const tgtLvl = parseInt(document.getElementById('targetLvl').value)||99;
+  const curXP = XP_TABLE[Math.min(curLvl,99)];
+  const tgtXP = XP_TABLE[Math.min(tgtLvl,99)];
+  const xpNeeded = Math.max(0, tgtXP-curXP);
+  const xphr = estimateXphr(selectedMethod);
+  const hours = xpNeeded/xphr;
+  const actions = Math.ceil(xpNeeded/selectedMethod.xpEach);
+  const gphr = getGphr(selectedMethod, xphr);
+  const progress = Math.min(100,(curXP/XP_TABLE[99])*100);
+
+  sec.style.display='block';
+  let gpCard = '';
+  if (gphr != null) {
+    const cls = gphr>=0?'green':'red';
+    const sign = gphr>=0?'+':'';
+    gpCard = `<div class="result-card"><div class="result-label">GP / hr</div><div class="result-val ${cls}">${sign}${fmtNum(gphr)}</div></div>`;
+  }
+  document.getElementById('resultsGrid').innerHTML =
+    `<div class="result-card"><div class="result-label">XP needed</div><div class="result-val">${fmtNum(xpNeeded)}</div></div>
+     <div class="result-card"><div class="result-label">Time</div><div class="result-val gold">${fmtTime(hours)}</div></div>
+     <div class="result-card"><div class="result-label">${selectedMethod.unit}</div><div class="result-val">${fmtNum(actions)}</div></div>
+     ${gpCard}
+     <div class="result-card"><div class="result-label">Levels</div><div class="result-val" style="font-size:16px">${curLvl} → ${tgtLvl}</div></div>`;
+
+  document.getElementById('lvlWarn').innerHTML = curLvl<selectedMethod.lvl
+    ? `<div class="warn">⚠ This method requires level ${selectedMethod.lvl}</div>` : '';
+  document.getElementById('xpBarFill').style.width = progress+'%';
+  document.getElementById('xpBarLeft').textContent = fmtNum(curXP)+' XP';
+  document.getElementById('xpBarRight').textContent = fmtNum(xpNeeded)+' XP to go';
+}
+
+// ─── UTILS ───────────────────────────────────────────────────
+function fmtNum(n) {
+  if (Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M';
+  if (Math.abs(n)>=1e3) return (n/1e3).toFixed(1)+'K';
+  return Math.round(n).toLocaleString();
+}
+function fmtTime(h) {
+  if (h<1/60) return Math.round(h*3600)+' sec';
+  if (h<1) return Math.round(h*60)+' min';
+  const hh=Math.floor(h), mm=Math.round((h-hh)*60);
+  return mm===0?hh+'h':hh+'h '+mm+'m';
+}
+
+// ─── EVENTS ──────────────────────────────────────────────────
+document.getElementById('username').addEventListener('keydown', e=>{ if(e.key==='Enter') fetchHiscores(); });
+document.getElementById('methodSearch').addEventListener('input', e=>renderMethods(e.target.value));
+['currentLvl','targetLvl'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  autoFillLevel();
+  calculate();
+}));
+
+init();
+</script>
+</body>
+</html>
