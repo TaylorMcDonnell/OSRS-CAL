@@ -175,7 +175,7 @@
       <div class="section-title" id="skillSectionTitle">Skill &amp; target</div>
       <div class="row2" style="margin-bottom:10px">
         <div><label>Current level <span style="color:var(--text3);font-weight:400;font-size:10px">(editable)</span></label><input type="number" id="currentLvl" min="1" max="99" value="1" style="background:var(--bg3);border-color:var(--accent)" /></div>
-        <div><label>Target level</label><input type="number" id="targetLvl" min="2" max="99" value="99" /></div>
+        <div><label>Target level</label><input type="number" id="targetLvl" min="1" max="99" value="99" /></div>
       </div>
     </div>
 
@@ -626,7 +626,7 @@ function estimateXphr(m) {
   const w = GEAR.weapon[selectedGear.weapon];
   const ammo = GEAR.ammo[selectedGear.ammo];
   const pMult = getPrayerMult();
-  const atkLvl = parseInt(document.getElementById('currentLvl').value)||1;
+  const atkLvl = Math.max(1, parseInt(document.getElementById('currentLvl').value)||1);
 
   if (currentSkill==='magic') return m.base;
 
@@ -767,10 +767,15 @@ function renderDrops(drops) {
 function calculate() {
   const sec = document.getElementById('resultsSection');
   if (!selectedMethod) { sec.style.display='none'; return; }
-  const curLvl = parseInt(document.getElementById('currentLvl').value)||1;
-  const tgtLvl = parseInt(document.getElementById('targetLvl').value)||99;
-  const curXP = XP_TABLE[Math.min(curLvl,99)];
-  const tgtXP = XP_TABLE[Math.min(tgtLvl,99)];
+  let curLvl = parseInt(document.getElementById('currentLvl').value);
+  let tgtLvl = parseInt(document.getElementById('targetLvl').value);
+  if (isNaN(curLvl) || curLvl < 1) curLvl = 1;
+  if (isNaN(tgtLvl) || tgtLvl < 1) tgtLvl = 99;
+  curLvl = Math.min(Math.max(curLvl, 1), 99);
+  tgtLvl = Math.min(Math.max(tgtLvl, 1), 99);
+  if (tgtLvl <= curLvl) tgtLvl = Math.min(curLvl + 1, 99);
+  const curXP = XP_TABLE[curLvl] || 0;
+  const tgtXP = XP_TABLE[tgtLvl] || 0;
   const xpNeeded = Math.max(0, tgtXP-curXP);
   const xphr = estimateXphr(selectedMethod);
   const hours = xpNeeded/xphr;
@@ -801,11 +806,13 @@ function calculate() {
 
 // ─── UTILS ───────────────────────────────────────────────────
 function fmtNum(n) {
+  if (isNaN(n) || !isFinite(n)) return '0';
   if (Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M';
   if (Math.abs(n)>=1e3) return (n/1e3).toFixed(1)+'K';
   return Math.round(n).toLocaleString();
 }
 function fmtTime(h) {
+  if (isNaN(h) || !isFinite(h) || h<=0) return '0 min';
   if (h<1/60) return Math.round(h*3600)+' sec';
   if (h<1) return Math.round(h*60)+' min';
   const hh=Math.floor(h), mm=Math.round((h-hh)*60);
