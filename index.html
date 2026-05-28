@@ -471,11 +471,32 @@ async function fetchHiscores(silent=false) {
   if (!username) return;
   const msg = document.getElementById('statusMsg');
   if (!silent) msg.className='status loading', msg.textContent='Fetching stats…';
+
+  const hiScoresUrl = 'https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player='+encodeURIComponent(username);
+  const proxies = [
+    u => 'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+    u => 'https://corsproxy.io/?'+encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u),
+  ];
+
+  let text = null;
+  for (const proxy of proxies) {
+    try {
+      const r = await fetch(proxy(hiScoresUrl));
+      if (!r.ok) continue;
+      const t = await r.text();
+      if (t && t.includes(',')) { text = t; break; }
+    } catch(e) { continue; }
+  }
+
+  if (!text) {
+    msg.className='status err';
+    msg.textContent='✗ Could not reach hiscores — try again in a moment';
+    document.getElementById('statGrid').innerHTML='';
+    return;
+  }
+
   try {
-    const url = 'https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player='+encodeURIComponent(username);
-    const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
-    if (!r.ok) throw new Error();
-    const text = await r.text();
     const lines = text.trim().split('\n');
     playerStats = {};
     for (const [skill, idx] of Object.entries(SKILL_IDX)) {
@@ -489,7 +510,7 @@ async function fetchHiscores(silent=false) {
     autoFillLevel();
   } catch(e) {
     msg.className='status err';
-    msg.textContent='✗ Could not load — check username and try again';
+    msg.textContent='✗ Could not parse stats — try again';
     document.getElementById('statGrid').innerHTML='';
   }
 }
