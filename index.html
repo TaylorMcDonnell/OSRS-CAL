@@ -174,7 +174,7 @@
     <div class="section">
       <div class="section-title" id="skillSectionTitle">Skill &amp; target</div>
       <div class="row2" style="margin-bottom:10px">
-        <div><label>Current level</label><input type="number" id="currentLvl" min="1" max="98" value="1" /></div>
+        <div><label>Current level <span style="color:var(--text3);font-weight:400;font-size:10px">(editable)</span></label><input type="number" id="currentLvl" min="1" max="99" value="1" style="background:var(--bg3);border-color:var(--accent)" /></div>
         <div><label>Target level</label><input type="number" id="targetLvl" min="2" max="99" value="99" /></div>
       </div>
     </div>
@@ -534,6 +534,7 @@ function renderStatGrid() {
 }
 
 function autoFillLevel() {
+  // just fills value, never locks the field
   const d = playerStats[currentSkill];
   if (d) document.getElementById('currentLvl').value = d.level;
   calculate();
@@ -814,10 +815,7 @@ function fmtTime(h) {
 // ─── EVENTS ──────────────────────────────────────────────────
 document.getElementById('username').addEventListener('keydown', e=>{ if(e.key==='Enter') fetchHiscores(); });
 document.getElementById('methodSearch').addEventListener('input', e=>renderMethods(e.target.value));
-['currentLvl','targetLvl'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
-  autoFillLevel();
-  calculate();
-}));
+['currentLvl','targetLvl'].forEach(id=>document.getElementById(id).addEventListener('input', calculate));
 
 init();
 </script>
