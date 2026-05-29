@@ -209,6 +209,13 @@
       <div id="lvlWarn"></div>
     </div>
 
+    <!-- Cost breakdown -->
+    <div class="section" id="costSection" style="display:none">
+      <div class="section-title">💰 Material cost — <span id="costMethodName" style="color:var(--accent);font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+      <div class="results-grid" id="costGrid"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Prices from OSRS Wiki GE API · Updates every ~5 min</div>
+    </div>
+
     <!-- Drop table -->
     <div class="section" id="dropsSection" style="display:none">
       <div class="section-title">Notable drops — <span id="dropsEnemy" style="color:var(--accent);font-weight:400;text-transform:none;letter-spacing:0"></span></div>
@@ -349,6 +356,66 @@ function loadSavedGear() {
   }
 }
 
+
+// ─── ITEM IDs FOR GE PRICE LOOKUP ────────────────────────────
+// Maps method name -> { itemId, itemName, qty per action }
+const BUYABLE_ITEMS = {
+  // Prayer
+  "Bury Bones":                  { id: 526,   name: "Bones",        qty: 1 },
+  "Bury Big Bones":              { id: 532,   name: "Big bones",    qty: 1 },
+  "Bury Zogre Bones":            { id: 4812,  name: "Zogre bones",  qty: 1 },
+  "Bury Dragon Bones (Wildy)":   { id: 536,   name: "Dragon bones", qty: 1 },
+  // Firemaking
+  "Regular Logs":                { id: 1511,  name: "Logs",         qty: 1 },
+  "Oak Logs":                    { id: 1521,  name: "Oak logs",     qty: 1 },
+  "Willow Logs":                 { id: 1519,  name: "Willow logs",  qty: 1 },
+  "Yew Logs":                    { id: 1515,  name: "Yew logs",     qty: 1 },
+  "Magic Logs":                  { id: 1513,  name: "Magic logs",   qty: 1 },
+  // Smithing (smelting - need ore)
+  "Bronze Bar":                  { id: 436,   name: "Copper ore",   qty: 1, id2: 438, name2: "Tin ore", qty2: 1 },
+  "Iron Bar":                    { id: 440,   name: "Iron ore",     qty: 1 },
+  "Steel Bar":                   { id: 440,   name: "Iron ore",     qty: 1, id2: 453, name2: "Coal",    qty2: 2 },
+  "Gold Bar":                    { id: 444,   name: "Gold ore",     qty: 1 },
+  "Mithril Bar":                 { id: 447,   name: "Mithril ore",  qty: 1, id2: 453, name2: "Coal",    qty2: 4 },
+  // Crafting
+  "Leather Gloves":              { id: 1741,  name: "Leather",      qty: 1 },
+  "Leather Body":                { id: 1741,  name: "Leather",      qty: 1 },
+  "Cutting Sapphires":           { id: 1623,  name: "Uncut sapphire", qty: 1 },
+  "Cutting Emeralds":            { id: 1621,  name: "Uncut emerald",  qty: 1 },
+  "Cutting Rubies":              { id: 1619,  name: "Uncut ruby",     qty: 1 },
+  "Cutting Diamonds":            { id: 1617,  name: "Uncut diamond",  qty: 1 },
+};
+
+function getItemPrice(id) {
+  const d = geprices[id];
+  if (!d) return null;
+  return Math.round((d.high + d.low) / 2);
+}
+
+function getTotalCost(method, actionsNeeded) {
+  const item = BUYABLE_ITEMS[method.name];
+  if (!item) return null;
+
+  const price1 = getItemPrice(item.id);
+  if (price1 === null) return null;
+
+  let costPerAction = price1 * item.qty;
+  let breakdown = `${item.qty}x ${item.name} @ ${fmtNum(price1)} gp`;
+
+  // Second ingredient (e.g. coal for steel bars)
+  if (item.id2) {
+    const price2 = getItemPrice(item.id2);
+    if (price2 !== null) {
+      costPerAction += price2 * item.qty2;
+      breakdown += ` + ${item.qty2}x ${item.name2} @ ${fmtNum(price2)} gp`;
+    }
+  }
+
+  const totalCost = Math.round(costPerAction * actionsNeeded);
+  const totalItems = actionsNeeded * item.qty;
+  return { totalCost, costPerAction, totalItems, breakdown, itemName: item.name };
+}
+
 // ─── METHODS DATABASE ────────────────────────────────────────
 const METHODS = {
   attack:{label:"Attack",methods:[
@@ -398,17 +465,26 @@ const METHODS = {
     {name:"Splashing",base:55000,xpEach:14,unit:"casts",lvl:1,note:"AFK method"},
   ]},
   prayer:{label:"Prayer",methods:[
-    {name:"Bury Bones",base:55000,xpEach:4.5,unit:"bones",lvl:1,note:"Buy from GE",gpPerAction:-5},
-    {name:"Bury Big Bones",base:55000,xpEach:15,unit:"bones",lvl:1,note:"Hill Giants drop",gpPerAction:-120},
-    {name:"Bury Zogre Bones",base:55000,xpEach:22.5,unit:"bones",lvl:1,note:"Zogre cave",gpPerAction:-250},
-    {name:"Bury Dragon Bones (Wildy)",base:55000,xpEach:72,unit:"bones",lvl:1,note:"Wilderness",gpPerAction:-2500},
+    {name:"Bury Bones",base:55000,xpEach:4.5,unit:"bones",lvl:1,note:"Buy from GE",gpPerAction:-5,
+     material:{name:"Bones",itemId:526,qty:1}},
+    {name:"Bury Big Bones",base:55000,xpEach:15,unit:"bones",lvl:1,note:"Hill Giants drop",gpPerAction:-120,
+     material:{name:"Big bones",itemId:532,qty:1}},
+    {name:"Bury Zogre Bones",base:55000,xpEach:22.5,unit:"bones",lvl:1,note:"Zogre cave",gpPerAction:-250,
+     material:{name:"Zogre bones",itemId:4812,qty:1}},
+    {name:"Bury Dragon Bones (Wildy)",base:55000,xpEach:72,unit:"bones",lvl:1,note:"Wilderness",gpPerAction:-2500,
+     material:{name:"Dragon bones",itemId:536,qty:1}},
   ]},
   woodcutting:{label:"Woodcutting",methods:[
-    {name:"Regular Trees",base:7000,xpEach:25,unit:"trees",lvl:1,note:"Lumbridge / Varrock",gpPerAction:20},
-    {name:"Oak Trees",base:17000,xpEach:37.5,unit:"trees",lvl:15,note:"Draynor / Varrock",gpPerAction:40},
-    {name:"Willow Trees",base:35000,xpEach:67.5,unit:"trees",lvl:30,note:"Draynor Village",gpPerAction:12},
-    {name:"Yew Trees",base:20000,xpEach:175,unit:"trees",lvl:60,note:"Varrock Palace",gpPerAction:450},
-    {name:"Magic Trees",base:12000,xpEach:250,unit:"trees",lvl:75,note:"Sorcerers Tower",gpPerAction:1000},
+    {name:"Regular Trees",base:7000,xpEach:25,unit:"trees",lvl:1,note:"Lumbridge / Varrock",gpPerAction:20,
+     material:{name:"Logs",itemId:1511,qty:1,selling:true}},
+    {name:"Oak Trees",base:17000,xpEach:37.5,unit:"trees",lvl:15,note:"Draynor / Varrock",gpPerAction:40,
+     material:{name:"Oak logs",itemId:1521,qty:1,selling:true}},
+    {name:"Willow Trees",base:35000,xpEach:67.5,unit:"trees",lvl:30,note:"Draynor Village",gpPerAction:12,
+     material:{name:"Willow logs",itemId:1519,qty:1,selling:true}},
+    {name:"Yew Trees",base:20000,xpEach:175,unit:"trees",lvl:60,note:"Varrock Palace",gpPerAction:450,
+     material:{name:"Yew logs",itemId:1515,qty:1,selling:true}},
+    {name:"Magic Trees",base:12000,xpEach:250,unit:"trees",lvl:75,note:"Sorcerers Tower",gpPerAction:1000,
+     material:{name:"Magic logs",itemId:1513,qty:1,selling:true}},
   ]},
   fishing:{label:"Fishing",methods:[
     {name:"Shrimps / Anchovies",base:10000,xpEach:10,unit:"catches",lvl:1,note:"Draynor Village",gpPerAction:5},
@@ -420,20 +496,32 @@ const METHODS = {
     {name:"Swordfish",base:25000,xpEach:100,unit:"fish",lvl:50,note:"Musa Point",gpPerAction:420},
   ]},
   firemaking:{label:"Firemaking",methods:[
-    {name:"Regular Logs",base:150000,xpEach:40,unit:"logs",lvl:1,gpPerAction:-20},
-    {name:"Oak Logs",base:200000,xpEach:60,unit:"logs",lvl:15,gpPerAction:-40},
-    {name:"Willow Logs",base:250000,xpEach:90,unit:"logs",lvl:30,gpPerAction:-12},
-    {name:"Yew Logs",base:290000,xpEach:202.5,unit:"logs",lvl:60,gpPerAction:-450},
-    {name:"Magic Logs",base:310000,xpEach:303.8,unit:"logs",lvl:75,gpPerAction:-1000},
+    {name:"Regular Logs",base:150000,xpEach:40,unit:"logs",lvl:1,gpPerAction:-20,
+     material:{name:"Logs",itemId:1511,qty:1}},
+    {name:"Oak Logs",base:200000,xpEach:60,unit:"logs",lvl:15,gpPerAction:-40,
+     material:{name:"Oak logs",itemId:1521,qty:1}},
+    {name:"Willow Logs",base:250000,xpEach:90,unit:"logs",lvl:30,gpPerAction:-12,
+     material:{name:"Willow logs",itemId:1519,qty:1}},
+    {name:"Yew Logs",base:290000,xpEach:202.5,unit:"logs",lvl:60,gpPerAction:-450,
+     material:{name:"Yew logs",itemId:1515,qty:1}},
+    {name:"Magic Logs",base:310000,xpEach:303.8,unit:"logs",lvl:75,gpPerAction:-1000,
+     material:{name:"Magic logs",itemId:1513,qty:1}},
   ]},
   mining:{label:"Mining",methods:[
-    {name:"Copper / Tin Ore",base:15000,xpEach:17.5,unit:"ores",lvl:1,note:"Varrock",gpPerAction:30},
-    {name:"Iron Ore",base:40000,xpEach:35,unit:"ores",lvl:15,note:"Varrock",gpPerAction:100},
-    {name:"Coal",base:25000,xpEach:50,unit:"ores",lvl:30,note:"Dwarven Mine",gpPerAction:180},
-    {name:"Gold Ore",base:35000,xpEach:65,unit:"ores",lvl:40,note:"Crafting Guild",gpPerAction:350},
-    {name:"Mithril Ore",base:20000,xpEach:80,unit:"ores",lvl:55,note:"Dwarven Mine",gpPerAction:350},
-    {name:"Adamantite Ore",base:18000,xpEach:95,unit:"ores",lvl:70,note:"Wilderness",gpPerAction:1200},
-    {name:"Runite Ore",base:10000,xpEach:125,unit:"ores",lvl:85,note:"Wilderness",gpPerAction:11000},
+    {name:"Copper / Tin Ore",base:15000,xpEach:17.5,unit:"ores",lvl:1,note:"Varrock",gpPerAction:30,
+     material:{name:"Copper ore",itemId:436,qty:1,selling:true}},
+    {name:"Iron Ore",base:40000,xpEach:35,unit:"ores",lvl:15,note:"Varrock",gpPerAction:100,
+     material:{name:"Iron ore",itemId:440,qty:1,selling:true}},
+    {name:"Coal",base:25000,xpEach:50,unit:"ores",lvl:30,note:"Dwarven Mine",gpPerAction:180,
+     material:{name:"Coal",itemId:453,qty:1,selling:true}},
+    {name:"Gold Ore",base:35000,xpEach:65,unit:"ores",lvl:40,note:"Crafting Guild",gpPerAction:350,
+     material:{name:"Gold ore",itemId:444,qty:1,selling:true}},
+    {name:"Mithril Ore",base:20000,xpEach:80,unit:"ores",lvl:55,note:"Dwarven Mine",gpPerAction:350,
+     material:{name:"Mithril ore",itemId:447,qty:1,selling:true}},
+    {name:"Adamantite Ore",base:18000,xpEach:95,unit:"ores",lvl:70,note:"Wilderness",gpPerAction:1200,
+     material:{name:"Adamantite ore",itemId:449,qty:1,selling:true}},
+    {name:"Runite Ore",base:10000,xpEach:125,unit:"ores",lvl:85,note:"Wilderness",gpPerAction:11000,
+     material:{name:"Runite ore",itemId:451,qty:1,selling:true}},
   ]},
   smithing:{label:"Smithing",methods:[
     {name:"Bronze Bar",base:100000,xpEach:6.2,unit:"bars",lvl:1,note:"Al Kharid furnace",gpPerAction:-60},
@@ -455,12 +543,18 @@ const METHODS = {
     {name:"Swordfish",base:250000,xpEach:140,unit:"fish",lvl:45,gpPerAction:400},
   ]},
   crafting:{label:"Crafting",methods:[
-    {name:"Leather Gloves",base:100000,xpEach:13.8,unit:"pairs",lvl:1,gpPerAction:-50},
-    {name:"Leather Body",base:120000,xpEach:25,unit:"bodies",lvl:14,gpPerAction:-80},
-    {name:"Cutting Sapphires",base:160000,xpEach:50,unit:"gems",lvl:20,gpPerAction:100},
-    {name:"Cutting Emeralds",base:180000,xpEach:67.5,unit:"gems",lvl:27,gpPerAction:200},
-    {name:"Cutting Rubies",base:200000,xpEach:85,unit:"gems",lvl:34,gpPerAction:400},
-    {name:"Cutting Diamonds",base:220000,xpEach:107.5,unit:"gems",lvl:43,gpPerAction:800},
+    {name:"Leather Gloves",base:100000,xpEach:13.8,unit:"pairs",lvl:1,gpPerAction:-50,
+     material:{name:"Leather",itemId:1741,qty:1}},
+    {name:"Leather Body",base:120000,xpEach:25,unit:"bodies",lvl:14,gpPerAction:-80,
+     material:{name:"Leather",itemId:1741,qty:1}},
+    {name:"Cutting Sapphires",base:160000,xpEach:50,unit:"gems",lvl:20,gpPerAction:100,
+     material:{name:"Uncut sapphire",itemId:1624,qty:1}},
+    {name:"Cutting Emeralds",base:180000,xpEach:67.5,unit:"gems",lvl:27,gpPerAction:200,
+     material:{name:"Uncut emerald",itemId:1626,qty:1}},
+    {name:"Cutting Rubies",base:200000,xpEach:85,unit:"gems",lvl:34,gpPerAction:400,
+     material:{name:"Uncut ruby",itemId:1628,qty:1}},
+    {name:"Cutting Diamonds",base:220000,xpEach:107.5,unit:"gems",lvl:43,gpPerAction:800,
+     material:{name:"Uncut diamond",itemId:1630,qty:1}},
   ]},
   runecraft:{label:"Runecraft",methods:[
     {name:"Air Runes",base:12000,xpEach:350,unit:"trips",lvl:1,note:"Air Altar",gpPerAction:800},
@@ -836,6 +930,54 @@ function renderDrops(drops) {
   ).join('');
 }
 
+
+// ─── COST BREAKDOWN ──────────────────────────────────────────
+function getLivePrice(itemId) {
+  if (!itemId) return null;
+  const d = geprices[itemId];
+  if (!d) return null;
+  // Use avg of high and low
+  const high = d.high || 0;
+  const low = d.low || 0;
+  return high && low ? Math.round((high + low) / 2) : (high || low);
+}
+
+function renderCostBreakdown(method, actionsNeeded) {
+  const sec = document.getElementById('costSection');
+  if (!method.material) { sec.style.display='none'; return; }
+
+  const mat = method.material;
+  const totalQty = Math.ceil(actionsNeeded * mat.qty);
+  const livePrice = getLivePrice(mat.itemId);
+  const priceEach = livePrice || Math.abs(method.gpPerAction || 0);
+  const totalCost = totalQty * priceEach;
+  const selling = mat.selling; // selling = gaining GP not spending
+
+  sec.style.display = 'block';
+  document.getElementById('costGrid').innerHTML = `
+    <div class="result-card">
+      <div class="result-label">${mat.name}</div>
+      <div class="result-val">${fmtNum(totalQty)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">needed</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">Price each</div>
+      <div class="result-val ${livePrice ? 'green' : ''}">${fmtNum(priceEach)} gp</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">${livePrice ? '🟢 live GE price' : '⚪ estimated'}</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">Total ${selling ? 'profit' : 'cost'}</div>
+      <div class="result-val ${selling ? 'green' : 'red'}">${selling ? '+' : '-'}${fmtNum(totalCost)} gp</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">${selling ? 'sell on GE' : 'buy on GE'}</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">Cost per level</div>
+      <div class="result-val" style="font-size:16px">${fmtNum(Math.round(totalCost / Math.max(1, parseInt(document.getElementById('targetLvl').value) - parseInt(document.getElementById('currentLvl').value))))} gp</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">avg per level</div>
+    </div>
+  `;
+}
+
 // ─── CALCULATE ───────────────────────────────────────────────
 function calculate() {
   const sec = document.getElementById('resultsSection');
@@ -864,12 +1006,28 @@ function calculate() {
     gpCard = `<div class="result-card"><div class="result-label">GP / hr</div><div class="result-val ${cls}">${sign}${fmtNum(gphr)}</div></div>`;
   }
 
+  // Total cost card for buyable skills
+  let costCard = '';
+  const costData = getTotalCost(selectedMethod, actions);
+  if (costData) {
+    costCard = `<div class="result-card" style="grid-column:span 2">
+      <div class="result-label">Total GP cost</div>
+      <div class="result-val red" style="font-size:18px">-${fmtNum(costData.totalCost)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${fmtNum(costData.totalItems)} × ${costData.itemName} · ${costData.breakdown}</div>
+    </div>`;
+  }
+
   document.getElementById('resultsGrid').innerHTML =
     `<div class="result-card"><div class="result-label">XP needed</div><div class="result-val">${fmtNum(xpNeeded)}</div></div>
      <div class="result-card"><div class="result-label">Time</div><div class="result-val gold">${fmtTime(hours)}</div></div>
      <div class="result-card"><div class="result-label">${selectedMethod.unit}</div><div class="result-val">${fmtNum(actions)}</div></div>
      ${gpCard}
-     <div class="result-card"><div class="result-label">Levels</div><div class="result-val" style="font-size:16px">${curLvl} → ${tgtLvl}</div></div>`;
+     <div class="result-card"><div class="result-label">Levels</div><div class="result-val" style="font-size:16px">${curLvl} → ${tgtLvl}</div></div>
+     ${costCard}`;
+
+  // Cost breakdown
+  document.getElementById('costMethodName').textContent = selectedMethod.name;
+  renderCostBreakdown(selectedMethod, actions);
 
   document.getElementById('lvlWarn').innerHTML = curLvl < selectedMethod.lvl
     ? `<div class="warn">⚠ This method requires level ${selectedMethod.lvl}</div>` : '';
