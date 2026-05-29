@@ -216,6 +216,13 @@
       <div style="font-size:11px;color:var(--text3);margin-top:8px">Prices from OSRS Wiki GE API · Updates every ~5 min</div>
     </div>
 
+    <!-- Roadmap -->
+    <div class="section" id="roadmapSection" style="display:none">
+      <div class="section-title" id="roadmapTitle">Route to 99</div>
+      <div id="roadmapSummary"></div>
+      <div id="roadmapSteps"></div>
+    </div>
+
     <!-- Drop table -->
     <div class="section" id="dropsSection" style="display:none">
       <div class="section-title">Notable drops — <span id="dropsEnemy" style="color:var(--accent);font-weight:400;text-transform:none;letter-spacing:0"></span></div>
@@ -306,6 +313,117 @@ const PRAYERS = {
   ],
 };
 
+
+
+// ─── SKILL ROADMAPS ──────────────────────────────────────────
+const ROADMAPS = {
+  cooking: [
+    { fromLvl:1,  toLvl:15,  method:"Shrimps",    itemId:317,  xpEach:30,   xphr:170000, gpEach:-36,   burnRate:0.40, note:"Drop everything, super fast" },
+    { fromLvl:15, toLvl:25,  method:"Sardines",   itemId:327,  xpEach:40,   xphr:200000, gpEach:-15,   burnRate:0.30, note:"Still cheap, burning slows down" },
+    { fromLvl:25, toLvl:50,  method:"Trout",      itemId:335,  xpEach:70,   xphr:250000, gpEach:-40,   burnRate:0.20, note:"Some burns until lv50, buy extra" },
+    { fromLvl:50, toLvl:99,  method:"Trout",      itemId:335,  xpEach:70,   xphr:270000, gpEach:-40,   burnRate:0,    note:"Burn-free from here, most efficient" },
+  ],
+  prayer: [
+    { fromLvl:1,  toLvl:10,  method:"Bones",      itemId:526,  xpEach:4.5,  xphr:55000,  gpEach:-6,    burnRate:0, note:"Just to get started" },
+    { fromLvl:10, toLvl:30,  method:"Big Bones",  itemId:532,  xpEach:15,   xphr:55000,  gpEach:-120,  burnRate:0, note:"3x XP over regular bones" },
+    { fromLvl:30, toLvl:43,  method:"Big Bones",  itemId:532,  xpEach:15,   xphr:55000,  gpEach:-120,  burnRate:0, note:"F2P prayer caps at 43 (Steel Skin)" },
+    { fromLvl:43, toLvl:99,  method:"Big Bones",  itemId:532,  xpEach:15,   xphr:55000,  gpEach:-120,  burnRate:0, note:"⚠ No F2P benefit past lv43 — members only" },
+  ],
+  firemaking: [
+    { fromLvl:1,  toLvl:15,  method:"Logs",       itemId:1511, xpEach:40,   xphr:150000, gpEach:-20,   burnRate:0, note:"Burn in a line, super fast levels" },
+    { fromLvl:15, toLvl:30,  method:"Oak Logs",   itemId:1521, xpEach:60,   xphr:200000, gpEach:-40,   burnRate:0, note:"Big XP jump per log" },
+    { fromLvl:30, toLvl:45,  method:"Willow Logs",itemId:1519, xpEach:90,   xphr:250000, gpEach:-12,   burnRate:0, note:"Cheap and fast" },
+    { fromLvl:45, toLvl:60,  method:"Maple Logs", itemId:1519, xpEach:135,  xphr:280000, gpEach:-50,   burnRate:0, note:"Good XP rate" },
+    { fromLvl:60, toLvl:75,  method:"Yew Logs",   itemId:1515, xpEach:202,  xphr:290000, gpEach:-450,  burnRate:0, note:"Gets expensive here" },
+    { fromLvl:75, toLvl:99,  method:"Magic Logs", itemId:1513, xpEach:303,  xphr:310000, gpEach:-1000, burnRate:0, note:"Very expensive but fastest XP" },
+  ],
+  crafting: [
+    { fromLvl:1,  toLvl:14,  method:"Leather Gloves",    itemId:1741, xpEach:13.8, xphr:100000, gpEach:-50,  burnRate:0, note:"Buy leather from GE" },
+    { fromLvl:14, toLvl:20,  method:"Leather Body",      itemId:1741, xpEach:25,   xphr:120000, gpEach:-80,  burnRate:0, note:"Better XP per leather" },
+    { fromLvl:20, toLvl:27,  method:"Sapphires",         itemId:1624, xpEach:50,   xphr:160000, gpEach:-100, burnRate:0, note:"Uncut sapphires from GE" },
+    { fromLvl:27, toLvl:34,  method:"Emeralds",          itemId:1626, xpEach:67.5, xphr:180000, gpEach:-200, burnRate:0, note:"Uncut emeralds" },
+    { fromLvl:34, toLvl:43,  method:"Rubies",            itemId:1628, xpEach:85,   xphr:200000, gpEach:-400, burnRate:0, note:"Uncut rubies" },
+    { fromLvl:43, toLvl:99,  method:"Diamonds",          itemId:1630, xpEach:107.5,xphr:220000, gpEach:-800, burnRate:0, note:"Fastest XP, most expensive" },
+  ],
+};
+
+const ROADMAP_SKILLS = ['cooking','prayer','firemaking','crafting'];
+
+function renderRoadmap() {
+  const skill = currentSkill;
+  const sec = document.getElementById('roadmapSection');
+  if (!ROADMAP_SKILLS.includes(skill)) { sec.style.display='none'; return; }
+
+  const roadmap = ROADMAPS[skill];
+  const curLvl = Math.min(99, Math.max(1, parseInt(document.getElementById('currentLvl').value) || 1));
+  sec.style.display = 'block';
+
+  // Calculate totals
+  let totalGP = 0, totalHours = 0, totalItems = 0;
+  const rows = roadmap.map(step => {
+    const from = Math.max(step.fromLvl, curLvl);
+    const to = step.toLvl;
+    if (from >= to) return null; // already past this bracket
+
+    const xpNeeded = XP_TABLE[to] - XP_TABLE[from];
+    const baseItems = Math.ceil(xpNeeded / step.xpEach);
+    const totalWithBurns = Math.ceil(baseItems * (1 + step.burnRate));
+    const livePrice = getLivePrice(step.itemId);
+    const priceEach = livePrice || Math.abs(step.gpEach);
+    const cost = totalWithBurns * priceEach * (step.gpEach < 0 ? -1 : 1);
+    const hours = xpNeeded / step.xphr;
+
+    totalGP += step.gpEach < 0 ? -Math.abs(cost) : 0;
+    totalHours += hours;
+    totalItems += totalWithBurns;
+
+    const past = from <= curLvl && to <= curLvl;
+    const current = from <= curLvl && to > curLvl;
+    const future = from >= curLvl;
+
+    return { step, from, to, xpNeeded, baseItems, totalWithBurns, priceEach, cost, hours, livePrice, past, current, future };
+  }).filter(Boolean);
+
+  const totalCostStr = totalGP < 0 ? `-${fmtNum(Math.abs(totalGP))} gp` : `+${fmtNum(totalGP)} gp`;
+  const totalCostColor = totalGP < 0 ? 'var(--red)' : 'var(--green)';
+
+  document.getElementById('roadmapTitle').textContent = skill.charAt(0).toUpperCase()+skill.slice(1)+' — Route to 99';
+  document.getElementById('roadmapSummary').innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:14px">
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:3px">TOTAL TIME</div><div style="font-size:18px;font-weight:600;color:var(--accent)">${fmtTime(totalHours)}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:3px">TOTAL COST</div><div style="font-size:18px;font-weight:600;color:${totalCostColor}">${totalCostStr}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:3px">ITEMS TO BUY</div><div style="font-size:18px;font-weight:600;color:var(--text)">${fmtNum(totalItems)}</div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:auto">${rows.some(r=>r.livePrice)?'🟢 Using live GE prices':'⚪ Using estimated prices'}</div>
+    </div>
+  `;
+
+  document.getElementById('roadmapSteps').innerHTML = rows.map((r,i) => {
+    const isCurrent = r.current;
+    const burnNote = r.step.burnRate > 0 ? `<span style="color:#e8a030;font-size:11px"> · ~${Math.round(r.step.burnRate*100)}% burn rate, buy ${r.totalWithBurns} (${r.baseItems} base + ${r.totalWithBurns-r.baseItems} extra)</span>` : '';
+    const costColor = r.step.gpEach < 0 ? 'var(--red)' : 'var(--green)';
+    const costSign = r.step.gpEach < 0 ? '-' : '+';
+    return `
+      <div style="border:1px solid ${isCurrent?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 14px;background:${isCurrent?'#1e1800':'var(--bg3)'};margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <span style="font-size:13px;font-weight:600;color:${isCurrent?'var(--accent)':'var(--text)'}">
+              ${isCurrent?'▶ ':''}Lv ${r.from} → ${r.to}
+            </span>
+            <span style="font-size:13px;color:var(--text2);margin-left:8px">${r.step.method}</span>
+            ${isCurrent?'<span style="font-size:11px;background:var(--accent);color:#1a1000;padding:2px 7px;border-radius:4px;margin-left:8px;font-weight:600">CURRENT</span>':''}
+          </div>
+          <div style="display:flex;gap:12px;flex-shrink:0">
+            <span style="font-size:12px;color:var(--text3)">${fmtTime(r.hours)}</span>
+            <span style="font-size:12px;font-weight:600;color:${costColor}">${costSign}${fmtNum(Math.abs(r.cost))} gp</span>
+            <span style="font-size:12px;color:var(--text3)">${fmtNum(r.totalWithBurns)} ${r.step.itemId===532?'bones':r.step.itemId===526?'bones':'items'}</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">${r.step.note}${burnNote}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${r.priceEach} gp each ${r.livePrice?'🟢':'⚪'} · ${fmtNum(r.xpNeeded)} XP needed</div>
+      </div>
+    `;
+  }).join('');
+}
 
 // ─── GEAR PRESETS ────────────────────────────────────────────
 const GEAR_PRESETS = {
@@ -726,6 +844,8 @@ function switchSkill(skill) {
   renderMethods();
   document.getElementById('resultsSection').style.display='none';
   document.getElementById('dropsSection').style.display='none';
+  document.getElementById('roadmapSection').style.display='none';
+  document.getElementById('costSection').style.display='none';
   document.getElementById('skillSectionTitle').textContent = METHODS[skill].label+' — skill & target';
 }
 
@@ -1055,6 +1175,7 @@ function calculate() {
   document.getElementById('xpBarFill').style.width = progress + '%';
   document.getElementById('xpBarLeft').textContent = fmtNum(curXP) + ' XP';
   document.getElementById('xpBarRight').textContent = fmtNum(xpNeeded) + ' XP to go';
+  renderRoadmap();
 }
 
 // ─── UTILS ───────────────────────────────────────────────────
